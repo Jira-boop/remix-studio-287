@@ -57,15 +57,15 @@ jobs:
             Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
         }
 
-    - name: ดาวน์โหลดและติดตั้ง Ngrok
+    - name: ดาวน์โหลดและติดตั้ง Ngrok แบบไฟล์ตรง
       run: |
-        winget install --id Ngrok.Ngrok -e --accept-source-agreements --accept-package-agreements
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b9NywUrujmV/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive ngrok.zip -DestinationPath . -Force
         
     - name: เชื่อมต่อ Ngrok Tunnel
       run: |
-        # แก้ไขจาก .\ngrok.exe เป็นคำสั่ง ngrok ธรรมดา
-        ngrok config add-authtoken ${{ github.event.inputs.ngrokToken }}
-        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
+        .\ngrok.exe config add-authtoken ${{ github.event.inputs.ngrokToken }}
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
         
     - name: ดึงข้อมูลที่อยู่ RDP
       run: |
