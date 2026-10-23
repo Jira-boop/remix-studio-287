@@ -2,11 +2,6 @@ name: Windows RDP (No ThyoCloud)
 
 on:
   workflow_dispatch:
-    inputs:
-      ngrokToken:
-        description: 'กรอก Ngrok Authtoken ของคุณที่นี่'
-        required: true
-        default: '3L6zkJkAfhTA8V50V2fI5PwUkFj_7Ky5Tagt8zeLrP8zXSEpf'
 
 jobs:
   build:
@@ -57,25 +52,24 @@ jobs:
             Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
         }
 
-    - name: ดาวน์โหลดและติดตั้ง Ngrok แบบไฟล์ตรง
+    - name: ดาวน์โหลดและติดตั้ง Cloudflare Tunnel
       run: |
-        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b9NywUrujmV/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-        Expand-Archive ngrok.zip -DestinationPath . -Force
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
         
-    - name: เชื่อมต่อ Ngrok Tunnel
+    - name: เชื่อมต่อ Tunnel ไปที่พอร์ต RDP (3389)
       run: |
-        .\ngrok.exe config add-authtoken ${{ github.event.inputs.ngrokToken }}
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "access rdp --url localhost:3389"
+        # สำรองสร้าง TCP Tunnel ผ่าน Cloudflare
+        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389"
         
     - name: ดึงข้อมูลที่อยู่ RDP
       run: |
-        Start-Sleep -Seconds 5
-        $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-        $publicUrl = $ngrokApi.tunnels[0].public_url
+        Start-Sleep -Seconds 7
         Write-Host "=========================================="
-        Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
+        Write-Host "ตั้งค่า RDP สำเร็จแล้ว!"
         Write-Host "Username: jira_zx"
         Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
+        Write-Host "หากใช้ Cloudflare ให้เชื่อมต่อผ่าน Localhost หรือดู URL ใน Log ของ cloudflared"
         Write-Host "=========================================="
         
     - name: รักษาสถานะให้ RDP ทำงานต่อ
