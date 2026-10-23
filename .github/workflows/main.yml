@@ -65,20 +65,26 @@ jobs:
         
     - name: ดึงข้อมูลที่อยู่ RDP
       run: |
-        Write-Host "กำลังรอเชื่อมต่อ Ngrok Tunnel..."
-        Start-Sleep -Seconds 10
+        Write-Host "กำลังรอลิงก์ Ngrok Tunnel..."
+        $publicUrl = ""
+        for ($i=1; $i -le 15; $i++) {
+            try {
+                $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+                $publicUrl = $response.tunnels[0].public_url
+                if ($publicUrl) { break }
+            } catch {
+                Start-Sleep -Seconds 2
+            }
+        }
         
-        try {
-            $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-            $publicUrl = $ngrokApi.tunnels[0].public_url
+        if ($publicUrl) {
             Write-Host "=========================================="
             Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
             Write-Host "Username: jira_zx"
             Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
             Write-Host "=========================================="
-        } catch {
-            Write-Host "⚠️ กำลังดึงข้อมูลพอร์ต ลองเช็คสถานะกระบวนการ..."
-            Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "⚠️ ดึงลิงก์ไม่สำเร็จ แต่ Ngrok กำลังรันอยู่ สามารถเช็คจากแดชบอร์ด Ngrok ได้ครับ"
         }
         
     - name: รักษาสถานะให้ RDP ทำงานต่อ
