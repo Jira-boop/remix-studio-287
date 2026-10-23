@@ -1,4 +1,4 @@
-name: Windows RDP (Fast Mode)
+name: Windows RDP (LocalTunnel)
 
 on:
   workflow_dispatch:
@@ -9,32 +9,55 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์
+    - name: เปิดใช้งาน RDP บน Windows และสร้างยูสเซอร์
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         net user jira_zx "" /add
         net localgroup administrators jira_zx /add
         reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f
-
-    - name: ดาวน์โหลด Ngrok
+        
+    - name: ดาวน์โหลดและติดตั้ง MegaCmd
       run: |
-        Invoke-WebRequest -Uri "https://bin.ngrok.com/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-        Expand-Archive ngrok.zip -DestinationPath . -Force
-
-    - name: เปิดไฟล์ Batch และ Playit.gg
+        Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
+        Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
+        
+    - name: โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files
+      run: |
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์แรกไปที่ C:\Program Files..."
+        New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
+        
+    - name: โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop
+      run: |
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่สองมาไว้ที่: $desktopPath"
+        New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
+        
+    - name: เปิด Playit.gg จากโฟลเดอร์ bin และรัน batch file
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
-        if (Test-Path "C:\Program Files\bin\playit.exe") { Start-Process -FilePath "C:\Program Files\bin\playit.exe" }
-        if (Test-Path $targetBatch) { Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" }
+        
+        if (Test-Path "C:\Program Files\bin\playit.exe") {
+            Start-Process -FilePath "C:\Program Files\bin\playit.exe"
+        }
+        
+        if (Test-Path $targetBatch) {
+            Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
+            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`""
+        } else {
+            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
+        }
 
-    - name: เชื่อมต่อ RDP และแสดงที่อยู่ทันที (Ngrok Direct Log)
+    - name: ติดตั้งและเปิดใช้งาน LocalTunnel (พอร์ต 3389)
       run: |
-        .\ngrok.exe config add-authtoken 3L6zgkkTzPPCuVlRCQMVtQvBw4B_3Gqf4jTpF5ewwQELwDGxc
+        winget install OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
+        npm install -g localtunnel
+        
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
         Write-Host "Password: (ปล่อยว่างไว้)"
-        Write-Host "คัดลอกที่อยู่ tcp:// ด้านล่างนี้ไปใช้ได้เลย:"
+        Write-Host "กำลังสร้างลิงก์ RDP ผ่าน LocalTunnel..."
         Write-Host "=========================================="
-        .\ngrok.exe tcp 3389 --log=stdout
+        
+        npx localtunnel --port 3389
