@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server Ultimate)
+name: Windows RDP (Minecraft Server Ultimate Final)
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: ติดตั้ง MegaCmd และดาวน์โหลดไฟล์จาก Mega
+    - name: ติดตั้ง MegaCmd และดาวน์โหลดไฟล์จาก Mega จริง
       run: |
         # ติดตั้ง MegaCmd แบบเงียบ
         Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
@@ -32,12 +32,12 @@ jobs:
         # เพิ่ม path ของ mega-cmd เข้า environment ตัวแปรระบบ
         $env:PATH += ";C:\Program Files\MEGAcmd"
         
-        # 1. โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files\MegaFolder
+        # 1. โหลดโฟลเดอร์ที่ 1 ไปไว้ที่ C:\Program Files\MegaFolder
         Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 1 เข้า C:\Program Files\MegaFolder..."
         New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
         mega-get "https://mega.nz/folder/9QI3iJBJ#-5xRXY38BvOvhP5Tm-zF6Q" "C:\Program Files\MegaFolder"
 
-        # 2. โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop (WorldMergeFolder)
+        # 2. โหลดโฟลเดอร์ที่ 2 ไปไว้หน้า Desktop (WorldMergeFolder)
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 2 ไปที่ Desktop..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
