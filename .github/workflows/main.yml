@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server Direct Download)
+name: Windows RDP (Minecraft Server MediaFire)
 
 on:
   workflow_dispatch:
@@ -23,27 +23,41 @@ jobs:
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: สร้างโฟลเดอร์เตรียมไว้
+    - name: ดาวน์โหลดและแตกไฟล์จาก MediaFire
       run: |
-        New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
         $desktopPath = [Environment]::GetFolderPath("Desktop")
+        
+        # 1. ดาวน์โหลด playit_gg.zip และติดตั้ง
+        Write-Host "กำลังดาวน์โหลด playit_gg.zip..."
+        Invoke-WebRequest -Uri "https://www.mediafire.com/file_premium/1s9uey5cucgqdni/playit_gg.zip/file" -OutFile "$desktopPath\playit_gg.zip"
+        Expand-Archive -Path "$desktopPath\playit_gg.zip" -DestinationPath "C:\Program Files" -Force
+
+        # 2. ดาวน์โหลด world merge.zip ไปไว้ที่ Desktop
+        Write-Host "กำลังดาวน์โหลด world merge.zip..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        Write-Host "สร้างโฟลเดอร์เรียบร้อยแล้ว (สามารถนำไฟล์มาใส่ผ่าน RDP ได้ทันทีหากต้องการ)"
+        Invoke-WebRequest -Uri "https://www.mediafire.com/file_premium/n6uetybhqo7dbq2/world+merge.zip/file" -OutFile "$desktopPath\WorldMergeFolder\world_merge.zip"
+        
+        # แตกไฟล์ world merge
+        Expand-Archive -Path "$desktopPath\WorldMergeFolder\world_merge.zip" -DestinationPath "$desktopPath\WorldMergeFolder" -Force
+        Write-Host "แตกไฟล์ทั้งหมดเรียบร้อยแล้ว!"
 
     - name: เปิด Playit.gg และ batch file
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
         
+        # เปิด Playit.gg (ปรับ Path ตามโครงสร้างไฟล์จริงด้านใน zip ถ้าจำเป็น)
         if (Test-Path "C:\Program Files\bin\playit.exe") { 
             Start-Process -FilePath "C:\Program Files\bin\playit.exe" 
+        } elseif (Test-Path "C:\Program Files\playit.exe") {
+            Start-Process -FilePath "C:\Program Files\playit.exe"
         }
         
         if (Test-Path $targetBatch) { 
             Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
             Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" 
         } else {
-            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat (สามารถรีโมตเข้าไปวางไฟล์เองผ่าน RDP ได้เลย)"
+            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางโฟลเดอร์"
         }
 
     - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
