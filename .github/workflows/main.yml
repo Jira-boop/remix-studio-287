@@ -2,11 +2,6 @@ name: Windows RDP (No ThyoCloud)
 
 on:
   workflow_dispatch:
-    inputs:
-      ngrokToken:
-        description: 'กรอก Ngrok Authtoken ของคุณที่นี่'
-        required: true
-        default: '3L6zgkkTzPPCuVlRCQMVtQvBw4B_3Gqf4jTpF5ewwQELwDGxc'
 
 jobs:
   build:
@@ -57,26 +52,34 @@ jobs:
             Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
         }
 
-    - name: ดาวน์โหลด Ngrok ผ่านลิงก์ตรงของคุณ
+    - name: ดาวน์โหลด Ngrok ผ่านลิงก์ตรง
       run: |
         Invoke-WebRequest -Uri "https://bin.ngrok.com/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
         Expand-Archive ngrok.zip -DestinationPath . -Force
         
-    - name: เชื่อมต่อ Ngrok Tunnel
+    - name: เชื่อมต่อและเริ่มรัน Ngrok Tunnel (ฝัง Token ให้เรียบร้อย)
       run: |
-        .\ngrok.exe config add-authtoken ${{ github.event.inputs.ngrokToken }}
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+        # ใส่ Token ที่คุณให้มาลงในคำสั่งนี้โดยตรงทันที
+        .\ngrok.exe config add-authtoken 3L6zgkkTzPPCuVlRCQMVtQvBw4B_3Gqf4jTpF5ewwQELwDGxc
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
         
     - name: ดึงข้อมูลที่อยู่ RDP
       run: |
-        Start-Sleep -Seconds 7
-        $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-        $publicUrl = $ngrokApi.tunnels[0].public_url
-        Write-Host "=========================================="
-        Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
-        Write-Host "Username: jira_zx"
-        Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
-        Write-Host "=========================================="
+        Write-Host "กำลังรอเชื่อมต่อ Ngrok Tunnel..."
+        Start-Sleep -Seconds 10
+        
+        try {
+            $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+            $publicUrl = $ngrokApi.tunnels[0].public_url
+            Write-Host "=========================================="
+            Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
+            Write-Host "Username: jira_zx"
+            Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
+            Write-Host "=========================================="
+        } catch {
+            Write-Host "⚠️ กำลังดึงข้อมูลพอร์ต ลองเช็คสถานะกระบวนการ..."
+            Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+        }
         
     - name: รักษาสถานะให้ RDP ทำงานต่อ
       run: |
