@@ -21,12 +21,8 @@ jobs:
         
     - name: สร้างผู้ใช้โดยไม่มีรหัสผ่าน (หรือรหัสผ่านว่าง)
       run: |
-        # สร้าง User ชื่อ jira_zx โดยปล่อยรหัสผ่านให้ว่าง
         net user jira_zx "" /add
         net localgroup administrators jira_zx /add
-        
-        # ปิดการบังคับใช้รหัสผ่าน เพื่อให้ RDP ยอมให้เข้าโดยไม่ต้องใส่รหัส
-        # (ผ่าน Local Security Policy หรือ Registry)
         reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f
         
     - name: ดาวน์โหลดและติดตั้ง MegaCmd (เครื่องมือช่วยโหลดไฟล์จาก Mega)
@@ -64,13 +60,12 @@ jobs:
     - name: ดาวน์โหลดและติดตั้ง Ngrok
       run: |
         winget install --id Ngrok.Ngrok -e --accept-source-agreements --accept-package-agreements
-        # เพิ่ม Ngrok เข้าไปในตัวแปรระบบเพื่อให้เรียกใช้คำสั่ง ngrok ได้ทันที
-        $env:Path += ";$env:LOCALAPPDATA\Microsoft\WindowsApps"
         
     - name: เชื่อมต่อ Ngrok Tunnel
       run: |
-        .\ngrok.exe config add-authtoken ${{ github.event.inputs.ngrokToken }}
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+        # แก้ไขจาก .\ngrok.exe เป็นคำสั่ง ngrok ธรรมดา
+        ngrok config add-authtoken ${{ github.event.inputs.ngrokToken }}
+        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
         
     - name: ดึงข้อมูลที่อยู่ RDP
       run: |
