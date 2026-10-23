@@ -1,4 +1,4 @@
-name: Windows RDP (Serveo Full)
+name: Windows RDP (Minecraft Server Full)
 
 on:
   workflow_dispatch:
@@ -23,26 +23,43 @@ jobs:
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: ดาวน์โหลดและติดตั้ง MegaCmd
+    - name: ติดตั้ง MegaCmd และดาวน์โหลดไฟล์จริง
       run: |
+        # ติดตั้ง MegaCmd แบบเงียบ
         Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
         Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
+        
+        # เพิ่ม path ของ mega-cmd เข้า environment ตัวแปรระบบ
+        $env:PATH += ";C:\Program Files\MEGAcmd"
+        
+        # กำหนดลิงก์ Mega ของคุณตรงนี้ (แทนที่เครื่องหมายคำพูดด้วยลิงก์จริงของคุณ)
+        $megaFolder1 = "ลิงก์_MEGA_สำหรับ_C_Program_Files"
+        $megaFolder2 = "ลิงก์_MEGA_สำหรับ_Desktop_WorldMergeFolder"
 
-    - name: โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files
-      run: |
+        # โหลดไฟล์แรกไปไว้ที่ C:\Program Files
+        Write-Host "กำลังดาวน์โหลดไฟล์แรกเข้า C:\Program Files..."
         New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
+        # mega-get $megaFolder1 "C:\Program Files\MegaFolder"
 
-    - name: โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop
-      run: |
+        # โหลดไฟล์ที่สองมาไว้หน้า Desktop
         $desktopPath = [Environment]::GetFolderPath("Desktop")
+        Write-Host "กำลังดาวน์โหลดไฟล์ที่สองไปที่หน้า Desktop..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
+        # mega-get $megaFolder2 "$desktopPath\WorldMergeFolder"
 
     - name: เปิด Playit.gg และ batch file
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
-        if (Test-Path "C:\Program Files\bin\playit.exe") { Start-Process -FilePath "C:\Program Files\bin\playit.exe" }
-        if (Test-Path $targetBatch) { Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" }
+        
+        if (Test-Path "C:\Program Files\bin\playit.exe") { 
+            Start-Process -FilePath "C:\Program Files\bin\playit.exe" 
+        }
+        
+        if (Test-Path $targetBatch) { 
+            Write-Host "กำลังรันไฟล์ batch..."
+            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" 
+        }
 
     - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
       run: |
