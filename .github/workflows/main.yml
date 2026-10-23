@@ -73,4 +73,4 @@ jobs:
         Write-Host "Password: 123789"
         Write-Host "กำลังสร้างพอร์ต RDP ผ่าน Serveo..."
         Write-Host "=========================================="
-        ssh -o StrictHostKeyChecking=no -R super_vm:3389:localhost:3389 serveo.net
+        ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
