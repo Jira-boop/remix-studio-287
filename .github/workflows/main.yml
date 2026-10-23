@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server Ultimate Final)
+name: Windows RDP (Minecraft Server Fixed Mega)
 
 on:
   workflow_dispatch:
@@ -29,19 +29,25 @@ jobs:
         Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
         Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
         
-        # เพิ่ม path ของ mega-cmd เข้า environment ตัวแปรระบบ
-        $env:PATH += ";C:\Program Files\MEGAcmd"
-        
+        # รอให้ติดตั้งเสร็จสมบูรณ์
+        Start-Sleep -Seconds 5
+
+        # กำหนด Path ของโปรแกรม MegaCmd
+        $megaCmdPath = "C:\Program Files\MEGAcmd\mega-get.bat"
+        if (-not (Test-Path $megaCmdPath)) {
+            $megaCmdPath = "C:\Users\runneradmin\AppData\Local\MEGAcmd\mega-get.bat"
+        }
+
         # 1. โหลดโฟลเดอร์ที่ 1 ไปไว้ที่ C:\Program Files\MegaFolder
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 1 เข้า C:\Program Files\MegaFolder..."
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 1..."
         New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
-        mega-get "https://mega.nz/folder/9QI3iJBJ#-5xRXY38BvOvhP5Tm-zF6Q" "C:\Program Files\MegaFolder"
+        & "C:\Program Files\MEGAcmd\mega-get.exe" "https://mega.nz/folder/9QI3iJBJ#-5xRXY38BvOvhP5Tm-zF6Q" "C:\Program Files\MegaFolder"
 
         # 2. โหลดโฟลเดอร์ที่ 2 ไปไว้หน้า Desktop (WorldMergeFolder)
         $desktopPath = [Environment]::GetFolderPath("Desktop")
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 2 ไปที่ Desktop..."
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 2..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        mega-get "https://mega.nz/folder/xdBzmRAQ#43xkofoIOF7wezS692CeSA" "$desktopPath\WorldMergeFolder"
+        & "C:\Program Files\MEGAcmd\mega-get.exe" "https://mega.nz/folder/xdBzmRAQ#43xkofoIOF7wezS692CeSA" "$desktopPath\WorldMergeFolder"
 
     - name: เปิด Playit.gg และ batch file
       run: |
