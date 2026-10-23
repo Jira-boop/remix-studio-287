@@ -1,60 +1,87 @@
-name: vm
+name: Windows RDP (No ThyoCloud)
 
 on:
   workflow_dispatch:
     inputs:
-      osChoice:
-        description: 'Pilih Versi OS Environment'
+      ngrokToken:
+        description: 'กรอก Ngrok Authtoken ของคุณที่นี่'
         required: true
-        type: choice
-        default: 'windows-2025'
-        options:
-          - windows-latest
-          - windows-2025
-          - windows-2022
-      customUsername:
-        description: 'Username Akses (Opsional - Default: VM)'
-        required: false
-        default: 'VM'
+        default: '3L6zkJkAfhTA8V50V2fI5PwUkFj_7Ky5Tagt8zeLrP8zXSEpf'
 
 jobs:
-  deploy-workspace:
-    runs-on: ${{ github.event.inputs.osChoice || 'windows-2025' }}
+  build:
+    runs-on: windows-2025
     timeout-minutes: 360
 
     steps:
-      - name: Menghubungkan ke ThyoCloud Service
-        env:
-          USER: ${{ github.event.inputs.customUsername || 'VM' }}
-          REPO: ${{ github.event.repository.name }}
-          OS_TYPE: ${{ github.event.inputs.osChoice || 'windows-2025' }}
-          TIMEOUT_MIN: '360'
-        run: |
-          Write-Host "Environment Terpilih: $env:OS_TYPE (Batas Timer: $env:TIMEOUT_MIN Menit)"
-          Write-Host "Verifikasi Akses Fast Mode ke ThyoCloud..."
-          
-          $webUrl = "https://thyo.cloud/api/get-core"
-          
-          $body = @{
-            username       = $env:USER
-            password       = ""
-            repo           = $env:REPO
-            os             = $env:OS_TYPE
-            timeoutMinutes = [int]$env:TIMEOUT_MIN
-          } | ConvertTo-Json
-          
-          $req = $null
-          try {
-            $req = Invoke-RestMethod -Uri $webUrl -Method Post -Body $body -ContentType "application/json"
-          } catch {
-            Write-Host "[ERROR JARINGAN] Gagal menghubungi API: $($_.Exception.Message)"
-            exit 1
-          }
-          
-          if ($req.success -eq $true) {
-            Write-Host "[OK] Akses Diterima! Menyiapkan Workspace..."
-            Invoke-Expression $req.script
-          } else {
-            Write-Host "[GAGAL] $($req.message)"
-            exit 1
-          }
+    - name: เปิดใช้งาน RDP บน Windows
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        
+    - name: สร้างผู้ใช้โดยไม่มีรหัสผ่าน (หรือรหัสผ่านว่าง)
+      run: |
+        # สร้าง User ชื่อ jira_zx โดยปล่อยรหัสผ่านให้ว่าง
+        net user jira_zx "" /add
+        net localgroup administrators jira_zx /add
+        
+        # ปิดการบังคับใช้รหัสผ่าน เพื่อให้ RDP ยอมให้เข้าโดยไม่ต้องใส่รหัส
+        # (ผ่าน Local Security Policy หรือ Registry)
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f
+        
+    - name: ดาวน์โหลดและติดตั้ง MegaCmd (เครื่องมือช่วยโหลดไฟล์จาก Mega)
+      run: |
+        Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
+        Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
+        
+    - name: โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files
+      run: |
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์แรกไปที่ C:\Program Files..."
+        New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
+        
+    - name: โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop
+      run: |
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่สองมาไว้ที่: $desktopPath"
+        New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
+        
+    - name: เปิด Playit.gg จากโฟลเดอร์ bin และรัน batch file
+      run: |
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
+        
+        if (Test-Path "C:\Program Files\bin\playit.exe") {
+            Start-Process -FilePath "C:\Program Files\bin\playit.exe"
+        }
+        
+        if (Test-Path $targetBatch) {
+            Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
+            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`""
+        } else {
+            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
+        }
+
+    - name: ดาวน์โหลดและติดตั้ง Ngrok
+      run: |
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4Pvu23D241/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive ngrok.zip -DestinationPath .
+        
+    - name: เชื่อมต่อ Ngrok Tunnel
+      run: |
+        .\ngrok.exe config add-authtoken ${{ github.event.inputs.ngrokToken }}
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+        
+    - name: ดึงข้อมูลที่อยู่ RDP
+      run: |
+        Start-Sleep -Seconds 5
+        $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+        $publicUrl = $ngrokApi.tunnels[0].public_url
+        Write-Host "=========================================="
+        Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
+        Write-Host "Username: jira_zx"
+        Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
+        Write-Host "=========================================="
+        
+    - name: รักษาสถานะให้ RDP ทำงานต่อ
+      run: |
+        while ($true) { Start-Sleep -Seconds 60 }
