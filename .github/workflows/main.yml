@@ -1,4 +1,4 @@
-name: Windows RDP (No ThyoCloud)
+name: Windows RDP (Fast Mode)
 
 on:
   workflow_dispatch:
@@ -9,84 +9,32 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: เปิดใช้งาน RDP บน Windows
+    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-    - name: สร้างผู้ใช้โดยไม่มีรหัสผ่าน (หรือรหัสผ่านว่าง)
-      run: |
         net user jira_zx "" /add
         net localgroup administrators jira_zx /add
         reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f
-        
-    - name: ดาวน์โหลดและติดตั้ง MegaCmd (เครื่องมือช่วยโหลดไฟล์จาก Mega)
-      run: |
-        Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
-        Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
-        
-    - name: โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files
-      run: |
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์แรกไปที่ C:\Program Files..."
-        New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
-        
-    - name: โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop
-      run: |
-        $desktopPath = [Environment]::GetFolderPath("Desktop")
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่สองมาไว้ที่: $desktopPath"
-        New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        
-    - name: เปิด Playit.gg จากโฟลเดอร์ bin และรัน batch file
-      run: |
-        $desktopPath = [Environment]::GetFolderPath("Desktop")
-        $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
-        
-        if (Test-Path "C:\Program Files\bin\playit.exe") {
-            Start-Process -FilePath "C:\Program Files\bin\playit.exe"
-        }
-        
-        if (Test-Path $targetBatch) {
-            Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
-            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`""
-        } else {
-            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
-        }
 
-    - name: ดาวน์โหลด Ngrok ผ่านลิงก์ตรง
+    - name: ดาวน์โหลด Ngrok
       run: |
         Invoke-WebRequest -Uri "https://bin.ngrok.com/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
         Expand-Archive ngrok.zip -DestinationPath . -Force
-        
-    - name: เชื่อมต่อและเริ่มรัน Ngrok Tunnel (ฝัง Token ให้เรียบร้อย)
+
+    - name: เปิดไฟล์ Batch และ Playit.gg
       run: |
-        # ใส่ Token ที่คุณให้มาลงในคำสั่งนี้โดยตรงทันที
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
+        if (Test-Path "C:\Program Files\bin\playit.exe") { Start-Process -FilePath "C:\Program Files\bin\playit.exe" }
+        if (Test-Path $targetBatch) { Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" }
+
+    - name: เชื่อมต่อ RDP และแสดงที่อยู่ทันที (Ngrok Direct Log)
+      run: |
         .\ngrok.exe config add-authtoken 3L6zgkkTzPPCuVlRCQMVtQvBw4B_3Gqf4jTpF5ewwQELwDGxc
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
-        
-    - name: ดึงข้อมูลที่อยู่ RDP
-      run: |
-        Write-Host "กำลังรอลิงก์ Ngrok Tunnel..."
-        $publicUrl = ""
-        for ($i=1; $i -le 15; $i++) {
-            try {
-                $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-                $publicUrl = $response.tunnels[0].public_url
-                if ($publicUrl) { break }
-            } catch {
-                Start-Sleep -Seconds 2
-            }
-        }
-        
-        if ($publicUrl) {
-            Write-Host "=========================================="
-            Write-Host "ที่อยู่ RDP ของคุณคือ: $publicUrl"
-            Write-Host "Username: jira_zx"
-            Write-Host "Password: (ไม่ต้องใส่รหัสผ่าน หรือปล่อยว่างไว้)"
-            Write-Host "=========================================="
-        } else {
-            Write-Host "⚠️ ดึงลิงก์ไม่สำเร็จ แต่ Ngrok กำลังรันอยู่ สามารถเช็คจากแดชบอร์ด Ngrok ได้ครับ"
-        }
-        
-    - name: รักษาสถานะให้ RDP ทำงานต่อ
-      run: |
-        while ($true) { Start-Sleep -Seconds 60 }
+        Write-Host "=========================================="
+        Write-Host "Username: jira_zx"
+        Write-Host "Password: (ปล่อยว่างไว้)"
+        Write-Host "คัดลอกที่อยู่ tcp:// ด้านล่างนี้ไปใช้ได้เลย:"
+        Write-Host "=========================================="
+        .\ngrok.exe tcp 3389 --log=stdout
