@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server Fixed Mega)
+name: Windows RDP (Minecraft Server Direct Download)
 
 on:
   workflow_dispatch:
@@ -23,31 +23,12 @@ jobs:
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: ติดตั้ง MegaCmd และดาวน์โหลดไฟล์จาก Mega จริง
+    - name: สร้างโฟลเดอร์เตรียมไว้
       run: |
-        # ติดตั้ง MegaCmd แบบเงียบ
-        Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
-        Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
-        
-        # รอให้ติดตั้งเสร็จสมบูรณ์
-        Start-Sleep -Seconds 5
-
-        # กำหนด Path ของโปรแกรม MegaCmd
-        $megaCmdPath = "C:\Program Files\MEGAcmd\mega-get.bat"
-        if (-not (Test-Path $megaCmdPath)) {
-            $megaCmdPath = "C:\Users\runneradmin\AppData\Local\MEGAcmd\mega-get.bat"
-        }
-
-        # 1. โหลดโฟลเดอร์ที่ 1 ไปไว้ที่ C:\Program Files\MegaFolder
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 1..."
         New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
-        & "C:\Program Files\MEGAcmd\mega-get.exe" "https://mega.nz/folder/9QI3iJBJ#-5xRXY38BvOvhP5Tm-zF6Q" "C:\Program Files\MegaFolder"
-
-        # 2. โหลดโฟลเดอร์ที่ 2 ไปไว้หน้า Desktop (WorldMergeFolder)
         $desktopPath = [Environment]::GetFolderPath("Desktop")
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่ 2..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        & "C:\Program Files\MEGAcmd\mega-get.exe" "https://mega.nz/folder/xdBzmRAQ#43xkofoIOF7wezS692CeSA" "$desktopPath\WorldMergeFolder"
+        Write-Host "สร้างโฟลเดอร์เรียบร้อยแล้ว (สามารถนำไฟล์มาใส่ผ่าน RDP ได้ทันทีหากต้องการ)"
 
     - name: เปิด Playit.gg และ batch file
       run: |
@@ -62,7 +43,7 @@ jobs:
             Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
             Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" 
         } else {
-            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางในเครื่อง"
+            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat (สามารถรีโมตเข้าไปวางไฟล์เองผ่าน RDP ได้เลย)"
         }
 
     - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
