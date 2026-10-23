@@ -1,4 +1,4 @@
-name: Windows RDP (Pinggy Fast Mode)
+name: Windows RDP (Serveo Fast)
 
 on:
   workflow_dispatch:
@@ -38,11 +38,11 @@ jobs:
         if (Test-Path "C:\Program Files\bin\playit.exe") { Start-Process -FilePath "C:\Program Files\bin\playit.exe" }
         if (Test-Path $targetBatch) { Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" }
 
-    - name: เชื่อมต่อ RDP ผ่าน Pinggy (TCP Tunnel)
+    - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
       run: |
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
         Write-Host "Password: (ปล่อยว่างไว้)"
-        Write-Host "คัดลอกที่อยู่ IP:Port ด้านล่างไปใช้ใน Remote Desktop:"
+        Write-Host "กำลังสร้างพอร์ต RDP ผ่าน Serveo..."
         Write-Host "=========================================="
-        ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:3389 tcp@a.pinggy.io
+        ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
