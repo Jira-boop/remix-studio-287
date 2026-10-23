@@ -1,4 +1,4 @@
-name: Windows RDP (LocalTunnel)
+name: Windows RDP (Pinggy Fast Mode)
 
 on:
   workflow_dispatch:
@@ -9,55 +9,40 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: เปิดใช้งาน RDP บน Windows และสร้างยูสเซอร์
+    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         net user jira_zx "" /add
         net localgroup administrators jira_zx /add
         reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f
-        
+
     - name: ดาวน์โหลดและติดตั้ง MegaCmd
       run: |
         Invoke-WebRequest -Uri "https://mega.nz/MEGAsyncSetup64.exe" -OutFile "mega_setup.exe"
         Start-Process -FilePath "mega_setup.exe" -ArgumentList "/S" -Wait
-        
+
     - name: โหลดโฟลเดอร์แรกไปไว้ที่ C:\Program Files
       run: |
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์แรกไปที่ C:\Program Files..."
         New-Item -ItemType Directory -Force -Path "C:\Program Files\MegaFolder"
-        
+
     - name: โหลดโฟลเดอร์ที่สองมาไว้หน้า Desktop
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
-        Write-Host "กำลังดาวน์โหลดโฟลเดอร์ที่สองมาไว้ที่: $desktopPath"
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        
-    - name: เปิด Playit.gg จากโฟลเดอร์ bin และรัน batch file
+
+    - name: เปิด Playit.gg และ batch file
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
-        
-        if (Test-Path "C:\Program Files\bin\playit.exe") {
-            Start-Process -FilePath "C:\Program Files\bin\playit.exe"
-        }
-        
-        if (Test-Path $targetBatch) {
-            Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
-            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`""
-        } else {
-            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางอีกครั้ง"
-        }
+        if (Test-Path "C:\Program Files\bin\playit.exe") { Start-Process -FilePath "C:\Program Files\bin\playit.exe" }
+        if (Test-Path $targetBatch) { Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" }
 
-    - name: ติดตั้งและเปิดใช้งาน LocalTunnel (พอร์ต 3389)
+    - name: เชื่อมต่อ RDP ผ่าน Pinggy (TCP Tunnel)
       run: |
-        winget install OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
-        npm install -g localtunnel
-        
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
         Write-Host "Password: (ปล่อยว่างไว้)"
-        Write-Host "กำลังสร้างลิงก์ RDP ผ่าน LocalTunnel..."
+        Write-Host "คัดลอกที่อยู่ IP:Port ด้านล่างไปใช้ใน Remote Desktop:"
         Write-Host "=========================================="
-        
-        npx localtunnel --port 3389
+        ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:3389 tcp@a.pinggy.io
