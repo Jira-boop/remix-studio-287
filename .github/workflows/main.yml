@@ -1,4 +1,4 @@
-name: Windows RDP (Serveo Fast)
+name: Windows RDP (Serveo Full)
 
 on:
   workflow_dispatch:
@@ -9,12 +9,18 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์แบบกำหนดรหัสผ่าน
+    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        # สร้างผู้ใช้ jira_zx พร้อมรหัสผ่าน 1234
-        net user jira_zx "1234" /add
+        
+        # ปิดนโยบายความซับซ้อนของรหัสผ่าน เพื่อให้ใช้รหัส 123789 ได้
+        secedit /export /cfg C:\secpol.cfg
+        (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
+        secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
+        
+        # สร้างผู้ใช้และกำหนดรหัสผ่านเป็น 123789
+        net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
     - name: ดาวน์โหลดและติดตั้ง MegaCmd
@@ -42,7 +48,7 @@ jobs:
       run: |
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
-        Write-Host "Password: 1234"
+        Write-Host "Password: 123789"
         Write-Host "กำลังสร้างพอร์ต RDP ผ่าน Serveo..."
         Write-Host "=========================================="
         ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
