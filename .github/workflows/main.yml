@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server MediaFire)
+name: Windows RDP (Minecraft Server MediaFire Direct)
 
 on:
   workflow_dispatch:
@@ -23,30 +23,36 @@ jobs:
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: ดาวน์โหลดและแตกไฟล์จาก MediaFire
+    - name: ดึงลิงก์ตรงและดาวน์โหลดจาก MediaFire
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         
-        # 1. ดาวน์โหลด playit_gg.zip และติดตั้ง
-        Write-Host "กำลังดาวน์โหลด playit_gg.zip..."
-        Invoke-WebRequest -Uri "https://www.mediafire.com/file_premium/1s9uey5cucgqdni/playit_gg.zip/file" -OutFile "$desktopPath\playit_gg.zip"
+        # ฟังก์ชันดึงลิงก์ดาวน์โหลดตรงจาก MediaFire
+        function Get-MediaFireDirectLink {
+            param ($Url)
+            $webPage = Invoke-WebRequest -Uri $Url -UseBasicParsing
+            $link = $webPage.Links | Where-Object { $_.id -eq "downloadButton" } | Select-Object -ExpandProperty href
+            return $link
+        }
+
+        Write-Host "กำลังดึงลิงก์ playit_gg.zip..."
+        $playitUrl = Get-MediaFireDirectLink "https://www.mediafire.com/file/1s9uey5cucgqdni/playit_gg.zip/file"
+        Invoke-WebRequest -Uri $playitUrl -OutFile "$desktopPath\playit_gg.zip"
         Expand-Archive -Path "$desktopPath\playit_gg.zip" -DestinationPath "C:\Program Files" -Force
 
-        # 2. ดาวน์โหลด world merge.zip ไปไว้ที่ Desktop
-        Write-Host "กำลังดาวน์โหลด world merge.zip..."
+        Write-Host "กำลังดึงลิงก์ world merge.zip..."
         New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        Invoke-WebRequest -Uri "https://www.mediafire.com/file_premium/n6uetybhqo7dbq2/world+merge.zip/file" -OutFile "$desktopPath\WorldMergeFolder\world_merge.zip"
-        
-        # แตกไฟล์ world merge
+        $worldUrl = Get-MediaFireDirectLink "https://www.mediafire.com/file/n6uetybhqo7dbq2/world+merge.zip/file"
+        Invoke-WebRequest -Uri $worldUrl -OutFile "$desktopPath\WorldMergeFolder\world_merge.zip"
         Expand-Archive -Path "$desktopPath\WorldMergeFolder\world_merge.zip" -DestinationPath "$desktopPath\WorldMergeFolder" -Force
-        Write-Host "แตกไฟล์ทั้งหมดเรียบร้อยแล้ว!"
+        
+        Write-Host "ดาวน์โหลดและแตกไฟล์สำเร็จครบถ้วน!"
 
     - name: เปิด Playit.gg และ batch file
       run: |
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
         
-        # เปิด Playit.gg (ปรับ Path ตามโครงสร้างไฟล์จริงด้านใน zip ถ้าจำเป็น)
         if (Test-Path "C:\Program Files\bin\playit.exe") { 
             Start-Process -FilePath "C:\Program Files\bin\playit.exe" 
         } elseif (Test-Path "C:\Program Files\playit.exe") {
@@ -67,4 +73,4 @@ jobs:
         Write-Host "Password: 123789"
         Write-Host "กำลังสร้างพอร์ต RDP ผ่าน Serveo..."
         Write-Host "=========================================="
-        ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
+        ssh -o StrictHostKeyChecking=no -R super_vm:3389:localhost:3389 serveo.net
