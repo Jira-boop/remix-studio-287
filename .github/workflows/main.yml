@@ -63,8 +63,9 @@ jobs:
 
     - name: ดาวน์โหลดและติดตั้ง Ngrok
       run: |
-        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4Pvu23D241/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-        Expand-Archive ngrok.zip -DestinationPath .
+        winget install --id Ngrok.Ngrok -e --accept-source-agreements --accept-package-agreements
+        # เพิ่ม Ngrok เข้าไปในตัวแปรระบบเพื่อให้เรียกใช้คำสั่ง ngrok ได้ทันที
+        $env:Path += ";$env:LOCALAPPDATA\Microsoft\WindowsApps"
         
     - name: เชื่อมต่อ Ngrok Tunnel
       run: |
