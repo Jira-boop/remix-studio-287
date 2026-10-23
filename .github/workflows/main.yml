@@ -1,4 +1,4 @@
-name: ThyoCloud Personal Workspace (Fast)
+name: vm
 
 on:
   workflow_dispatch:
@@ -37,6 +37,7 @@ jobs:
           
           $body = @{
             username       = $env:USER
+            password       = ""
             repo           = $env:REPO
             os             = $env:OS_TYPE
             timeoutMinutes = [int]$env:TIMEOUT_MIN
