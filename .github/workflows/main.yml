@@ -1,4 +1,4 @@
-name: Windows RDP with Mega and Java 25
+name: Windows RDP with Mega, Java 25 & Ngrok
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
         [Environment]::SetEnvironmentVariable("Path", $env:Path, "Machine")
         Write-Host "ติดตั้ง Java 25 สำเร็จ!"
 
-    - name: ติดตั้ง MEGA Desktop App และล็อกอิน
+    - name: ติดตั้ง MEGA Desktop App
       run: |
         Write-Host "กำลังดาวน์โหลด MEGA Desktop App..."
         $megaUrl = "https://mega.nz/MEGAsyncSetup64.exe"
@@ -59,13 +59,21 @@ jobs:
             }
         }
 
-    - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
+    - name: เชื่อมต่อ RDP ผ่าน Ngrok (TCP Tunnel)
       run: |
+        # ดาวน์โหลดและติดตั้ง Ngrok
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4P326nt3fs/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive -Path "ngrok.zip" -DestinationPath "C:\Windows" -Force
+        
+        # ใส่ Authtoken จาก GitHub Secret
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
         Write-Host "Password: 123789"
         Write-Host "MEGA Account: jirawatkaewninta@gmail.com"
         Write-Host "=========================================="
-        Write-Host "กำลังเชื่อมต่อ Serveo..."
+        Write-Host "กำลังสร้างอุโมงค์ Ngrok..."
         
-        ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
+        # รัน Ngrok พอร์ต 3389
+        ngrok tcp 3389
