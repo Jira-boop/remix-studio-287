@@ -1,4 +1,4 @@
-name: Windows RDP (Minecraft Server MediaFire Direct)
+name: Windows RDP with Mega and Java 25
 
 on:
   workflow_dispatch:
@@ -9,61 +9,54 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: เปิดใช้งาน RDP และสร้างยูสเซอร์
+    - name: ตั้งค่าระบบ RDP และสร้างยูสเซอร์
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # ปิดนโยบายความซับซ้อนของรหัสผ่าน เพื่อให้ใช้รหัส 123789 ได้
+        # ปิดนโยบายความซับซ้อนรหัสผ่าน
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
         
-        # สร้างผู้ใช้และกำหนดรหัสผ่านเป็น 123789
+        # สร้างผู้ใช้ jira_zx / 123789
         net user jira_zx "123789" /add
         net localgroup administrators jira_zx /add
 
-    - name: ดึงลิงก์ตรงและดาวน์โหลดจาก MediaFire
+    - name: ติดตั้ง Java 25
       run: |
-        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        Write-Host "กำลังดาวน์โหลดและติดตั้ง Java 25 (JDK)..."
+        $javaUrl = "https://download.oracle.com/java/25/latest/jdk-25_windows-x64_bin.exe"
+        $javaMsi = "$env:TEMP\jdk25.exe"
+        Invoke-WebRequest -Uri $javaUrl -OutFile $javaMsi
+        Start-Process -FilePath $javaMsi -ArgumentList "/s" -Wait
         
-        # ฟังก์ชันดึงลิงก์ดาวน์โหลดตรงจาก MediaFire
-        function Get-MediaFireDirectLink {
-            param ($Url)
-            $webPage = Invoke-WebRequest -Uri $Url -UseBasicParsing
-            $link = $webPage.Links | Where-Object { $_.id -eq "downloadButton" } | Select-Object -ExpandProperty href
-            return $link
-        }
+        # ตั้งค่า Environment Variable สำหรับ Java
+        [Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Java\jdk-25", "Machine")
+        $env:Path += ";C:\Program Files\Java\jdk-25\bin"
+        [Environment]::SetEnvironmentVariable("Path", $env:Path, "Machine")
+        Write-Host "ติดตั้ง Java 25 สำเร็จ!"
 
-        Write-Host "กำลังดึงลิงก์ playit_gg.zip..."
-        $playitUrl = Get-MediaFireDirectLink "https://www.mediafire.com/file/1s9uey5cucgqdni/playit_gg.zip/file"
-        Invoke-WebRequest -Uri $playitUrl -OutFile "$desktopPath\playit_gg.zip"
-        Expand-Archive -Path "$desktopPath\playit_gg.zip" -DestinationPath "C:\Program Files" -Force
-
-        Write-Host "กำลังดึงลิงก์ world merge.zip..."
-        New-Item -ItemType Directory -Force -Path "$desktopPath\WorldMergeFolder"
-        $worldUrl = Get-MediaFireDirectLink "https://www.mediafire.com/file/n6uetybhqo7dbq2/world+merge.zip/file"
-        Invoke-WebRequest -Uri $worldUrl -OutFile "$desktopPath\WorldMergeFolder\world_merge.zip"
-        Expand-Archive -Path "$desktopPath\WorldMergeFolder\world_merge.zip" -DestinationPath "$desktopPath\WorldMergeFolder" -Force
-        
-        Write-Host "ดาวน์โหลดและแตกไฟล์สำเร็จครบถ้วน!"
-
-    - name: เปิด Playit.gg และ batch file
+    - name: ติดตั้ง MEGA Desktop App และล็อกอิน
       run: |
-        $desktopPath = [Environment]::GetFolderPath("Desktop")
-        $targetBatch = "$desktopPath\WorldMergeFolder\world merge\รวมเซิร์ฟ.bat"
+        Write-Host "กำลังดาวน์โหลด MEGA Desktop App..."
+        $megaUrl = "https://mega.nz/MEGAsyncSetup64.exe"
+        $megaInstaller = "$env:TEMP\MEGAsyncSetup.exe"
+        Invoke-WebRequest -Uri $megaUrl -OutFile $megaInstaller
         
-        if (Test-Path "C:\Program Files\bin\playit.exe") { 
-            Start-Process -FilePath "C:\Program Files\bin\playit.exe" 
-        } elseif (Test-Path "C:\Program Files\playit.exe") {
-            Start-Process -FilePath "C:\Program Files\playit.exe"
-        }
+        Write-Host "กำลังติดตั้ง MEGAsync..."
+        Start-Process -FilePath $megaInstaller -ArgumentList "/S" -Wait
         
-        if (Test-Path $targetBatch) { 
-            Write-Host "กำลังรันไฟล์ รวมเซิร์ฟ.bat..."
-            Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$targetBatch`"" 
+        # เปิดโปรแกรม MEGA Desktop ขึ้นมา
+        $megaPath = "C:\Program Files\MEGAsync\MEGAsync.exe"
+        if (Test-Path $megaPath) {
+            Start-Process -FilePath $megaPath
+            Write-Host "เปิด MEGAsync เรียบร้อย!"
         } else {
-            Write-Host "ไม่พบไฟล์ รวมเซิร์ฟ.bat กรุณาตรวจสอบเส้นทางโฟลเดอร์"
+            $userMegaPath = "$env:LOCALAPPDATA\MEGAsync\MEGAsync.exe"
+            if (Test-Path $userMegaPath) {
+                Start-Process -FilePath $userMegaPath
+            }
         }
 
     - name: เชื่อมต่อ RDP ผ่าน Serveo (TCP Tunnel)
@@ -71,6 +64,8 @@ jobs:
         Write-Host "=========================================="
         Write-Host "Username: jira_zx"
         Write-Host "Password: 123789"
-        Write-Host "กำลังสร้างพอร์ต RDP ผ่าน Serveo..."
+        Write-Host "MEGA Account: jirawatkaewninta@gmail.com"
         Write-Host "=========================================="
+        Write-Host "กำลังเชื่อมต่อ Serveo..."
+        
         ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
